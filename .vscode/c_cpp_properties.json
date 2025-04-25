@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "~/Library/Arduino15/packages/esp8266/hardware/esp8266/3.1.2/cores/esp8266",
+                "~/Library/Arduino15/packages/esp8266/hardware/esp8266/3.1.2/libraries/**",
+                "~/Library/Arduino15/packages/esp8266/hardware/esp8266/3.1.2/tools/sdk/include",
+                "~/Library/Arduino15/packages/esp8266/hardware/esp8266/3.1.2/tools/sdk/lwip2/include"
+            ],
+            "defines": [
+                "ESP8266",
+                "ARDUINO=10805"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64"
+        }
+    ],
+    "version": 4
+}
