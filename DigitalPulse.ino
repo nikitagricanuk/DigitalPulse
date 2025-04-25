@@ -5,8 +5,8 @@
 #include "wifi.h"
 
 // Global definitions
-#define WIRELESS_SSID juli
-#define WIRELESS_PASSWORD 00000000
+#define WIRELESS_SSID "juli"
+#define WIRELESS_PASSWORD "00000000"
 
 // the setup function runs once when you press reset or power the board
 ESP8266WebServer server(80); //Server on port 80
