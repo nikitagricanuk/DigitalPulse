@@ -41,6 +41,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             closeGate(gateId.toInt());
         }
     }
+    else if (topicStr == "digitalpulse-gate/antifreeze/settings") {
+        int separatorIndex = message.indexOf(',');
+        if (separatorIndex > 0) {
+            unsigned long intervalMs = message.substring(0, separatorIndex).toInt();
+            int pulseDurationMs = message.substring(separatorIndex + 1).toInt();
+            setAntifreezeSettings(intervalMs, pulseDurationMs);
+        }
+    }
+    else if (topicStr == "digitalpulse-gate/antifreeze/trigger") {
+        int gateId = message.toInt();
+        if (gateId > 0) {
+            Serial.println("Manual antifreeze trigger for gate ID: " + String(gateId));
+            antifreezeGate(gateId, true);
+        }
+    }
 }
 
 void initializeMQTT() {
@@ -58,6 +73,8 @@ void reconnectMQTT() {
             Serial.println("connected");
             mqttClient.subscribe("digitalpulse-gate/open/#");
             mqttClient.subscribe("digitalpulse-gate/close/#");
+            mqttClient.subscribe("digitalpulse-gate/antifreeze/settings");
+            mqttClient.subscribe("digitalpulse-gate/antifreeze/trigger");
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());

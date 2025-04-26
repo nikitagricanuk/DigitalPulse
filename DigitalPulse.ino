@@ -32,12 +32,13 @@ void setup() {
 void loop() {
   // server.handleClient();
   handleMQTT();
-  Serial.println(dallasReadTemperatureByIndex(0));
+  antifreezeGate(1);
+  antifreezeGate(2);
   char payload[50];
+  if (dallasReadTemperatureByIndex(0) == -127.0) {
+    Serial.println("No DS18B20 sensor found");
+    return;
+  }
   dtostrf(dallasReadTemperatureByIndex(0), 1, 2, payload);
   publishMQTT("digitalpulse/temperature", payload);
 }
-
-// void handleRoot() {
-//   server.send(200, "text/plain", "<!DOCTYPE html><html lang=\\\"ru\\\"><head><meta charset=\\\"UTF-8\\\"><title>Параметры с затворами</title><style>.container{display:flex;justify-content:space-between;margin:20px;gap:20px;}.section{flex:1;border:1px solid #888;padding:20px;display:flex;flex-direction:column;justify-content:space-between;min-height:350px;box-sizing:border-box;}.section h2{text-align:center;}.parameters{font-size:18px;line-height:1.6;margin:20px 0;}.parameters p{margin:8px 0;}.action-button{width:150px;padding:10px;font-size:16px;color:#fff;background-color:#007BFF;border:none;border-radius:5px;cursor:pointer;align-self:center;}</style></head><body><div class=\\\"container\\\"><div class=\\\"section\\\"><h2>Затвор 1</h2><div class=\\\"parameters\\\"><p><strong>Уровень воды:</strong> --</p><p><strong>Температура:</strong> --</p><p><strong>Давление:</strong> --</p></div><button class=\\\"action-button\\\" id=\\\"leftButton\\\">Открыть</button></div><div class=\\\"section\\\"><h2>Затвор 2</h2><div class=\\\"parameters\\\"><p><strong>Уровень воды:</strong> --</p><p><strong>Температура:</strong> --</p><p><strong>Давление:</strong> --</p></div><button class=\\\"action-button\\\" id=\\\"rightButton\\\">Открыть</button></div></div></body></html>");
-// }
