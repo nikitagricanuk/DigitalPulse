@@ -2,5 +2,5 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-void initializeSensors(DallasTemperature *sensors);
-float readTemperature(DallasTemperature *sensors);
+void initializeSensors();
+float dallasReadTemperatureByIndex(int index);
