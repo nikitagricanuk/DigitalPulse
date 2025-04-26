@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мониторинг гидросистемы</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="mt.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        /* Стили для вкладок */
+        .tab-container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden; /* Чтобы контент не вылезал за границы */
+        }
+
+        .tab-buttons {
+            display: flex;
+            background-color: #eee;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background-color: transparent;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            flex: 1; /* Равномерное распределение места */
+            text-align: center;
+        }
+
+        .tab-button.active {
+            background-color: #ddd;
+        }
+
+        .tab-content {
+            padding: 20px;
+            display: none; /* По умолчанию скрываем все вкладки */
+        }
+
+        .tab-content.active {
+            display: block; /* Показываем активную вкладку */
+        }
+
+        .monitoring {
+            text-align: center;
+        }
+
+        .monitoring h1 {
+            color: #333;
+        }
+
+        .parameter {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .parameter-name {
+            font-weight: bold;
+        }
+
+        .parameter-value {
+            font-size: 16px;
+        }
+
+        .normal {
+            color: #27ae60; /* Green */
+        }
+
+        .abnormal {
+            color: #e74c3c; /* Red */
+        }
+
+        .controls {
+            text-align: center;
+        }
+
+        .controls h2 {
+            color: #333;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .controls button:hover {
+            background-color: #2980b9;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        /* Стили для таймера и настройки интервала */
+        #timer-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #timer {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #interval-settings {
+            margin-top: 10px;
+        }
+
+        #interval-input {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 80px;
+        }
+
+        #interval-button {
+            padding: 5px 10px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #interval-button:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tab-container">
+    <div class="tab-buttons">
+        <button class="tab-button active" data-tab="monitoring">Мониторинг</button>
+        <button class="tab-button" data-tab="controls">Управление</button>
+    </div>
+
+    <div class="tab-content active" id="monitoring">
+        <div class="monitoring">
+            <h1>Мониторинг гидросистемы</h1>
+
+            <div class="parameter">
+                <div class="parameter-name">Уровень воды</div>
+                <div class="parameter-value normal" id="water-level">Норма</div>
+            </div>
+
+            <div class="parameter">
+                <div class="parameter-name">Температура воды</div>
+                <div class="parameter-value" id="SensorValue"></div>
+            </div>
+
+            <div id="timer-container">
+                <h2>Время до следующего профилактического движения:</h2>
+                <div id="timer">--:--:--</div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="tab-content" id="controls">
+        <div class="controls">
+            <h2>Управление затворами</h2>
+
+            <button id="gate1-close-btn" onclick="controlGate1('close')">Закрыть Затвор 1</button>
+            <button id="gate1-open-btn" onclick="controlGate1('open')">Открыть Затвор 1</button>
+
+            <button id="gate2-close-btn" onclick="controlGate2('close')">Закрыть Затвор 2</button>
+            <button id="gate2-open-btn" onclick="controlGate2('open')">Открыть Затвор 2</button>
+
+            <div id="interval-settings">
+                <label for="interval-input">Интервал (часы):</label>
+                <input type="number" id="interval-input" value="2" min="1" max="24">
+                <button id="interval-button">Установить</button>
+            </div>
+
+            <div class="error" id="error-msg">Ошибка движения затворов</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // JavaScript для переключения вкладок
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // 1. Деактивируем все вкладки
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // 2. Активируем текущую вкладку
+            const tabId = button.dataset.tab;
+            document.getElementById(tabId).classList.add('active');
+            button.classList.add('active');
+        });
+    });
+
+    //Ваши функции из предыдущего кода (updateParameters)
+    // ...
+
+    // Переменная состояния (x=0 - ошибка)
+    let x = 1;
+    let gate1Open = true;
+    let gate2Open = true;
+
+    // Функция обновления параметров
+    function updateParameters() {
+        // Здесь можно добавить логику получения реальных данных
+        // Сейчас просто случайные значения для демонстрации
+        const level = Math.random() > 0.2 ? "Норма" : "Выше нормы!";
+        // const temp = (Math.random() * 30 + 10).toFixed(1); // Случайная температура от 10 до 40
+
+        document.getElementById("water-level").textContent = level;
+        document.getElementById("water-level").className = level === "Норма" ?
+            "parameter-value normal" : "parameter-value abnormal";
+
+        // document.getElementById("SensorValue").textContent = temp + " °C"; // Исправлено
+
+    }
+
+    // Функция переключения состояния затвора (теперь только визуальное изменение)
+    function toggleGate(gateNumber, action) {
+        // Обновляем состояние затвора (в памяти)
+        if (gateNumber === 1) {
+            gate1Open = action === 'open';
+        } else {
+            gate2Open = action === 'close';
+        }
+
+        // Обновляем текст кнопок (если хотите показывать текущее состояние)
+        updateGateButtonText(gateNumber);
+    }
+
+    function updateGateButtonText(gateNumber) {
+        const closeButton = document.getElementById(`gate${gateNumber}-close-btn`);
+        const openButton = document.getElementById(`gate${gateNumber}-open-btn`);
+
+        if (gateNumber === 1) {
+            closeButton.disabled = !gate1Open; // Disable close if already closed
+            openButton.disabled = gate1Open; // Disable open if already open
+
+        } else {
+            closeButton.disabled = !gate2Open;
+            openButton.disabled = gate2Open;
+
+        }
+    }
+
+    // Функция для отправки команды управления затвором 1 через MQTT
+    function controlGate1(action) {
+        controlGate(1, action);
+    }
+
+    // Функция для отправки команды управления затвором 2 через MQTT
+    function controlGate2(action) {
+        controlGate(2, action);
+    }
+
+
+    // Функция для отправки команды управления затвором через MQTT
+    function controlGate(gateNumber, action) {
+        if (x === 0) {
+            document.getElementById("error-msg").style.display = "block";
+            return;
+        } else {
+            document.getElementById("error-msg").style.display = "none";
+        }
+
+        let topic = `digitalpulse-gate/open/${gateNumber}`; //  Используем разные темы для разных затворов
+        let message;
+
+        if (action === 'close') {
+            message = 0;
+        } else if (action === 'open') {
+            message = 1;
+        } else {
+            console.error("Недопустимое действие:", action);
+            return; // Прерываем функцию, если действие недопустимо
+        }
+
+        console.log(`Отправляем сообщение в MQTT: topic=${topic}, message=${message}`);
+
+        // Проверяем, что клиент MQTT подключен
+        if (typeof client !== 'undefined' && client.connected) {
+            client.publish(topic, message.toString(), (err) => { // Отправляем строку
+                if (err) {
+                    console.error("Ошибка отправки сообщения:", err);
+                    document.getElementById("error-msg").style.display = "block"; // Показать сообщение об ошибке
+                } else {
+                    console.log("Сообщение отправлено успешно");
+                    document.getElementById("error-msg").style.display = "none"; // Скрыть сообщение об ошибке
+                    toggleGate(gateNumber, action); // Обновляем текст кнопок
+                }
+            });
+        } else {
+            console.error("MQTT клиент не подключен!");
+            document.getElementById("error-msg").style.display = "block"; // Показать сообщение об ошибке
+        }
+    }
+
+
+    // Запускаем обновление параметров
+    updateParameters();
+
+    // Для тестирования - можно изменить x на 0, чтобы увидеть ошибку
+    // x = 0;
+
+    // Новый код для профилактического движения затворов
+    let preventiveInterval = 2; // Интервал по умолчанию (2 часа)
+    let timerInterval; // Переменная для хранения ID интервала таймера
+    let nextMovementTime; // Время следующего движения
+
+    function preventiveGateMovement() {
+        // Выбираем случайный затвор (1 или 2)
+        const gateNumber = Math.random() < 0.5 ? 1 : 2;
+
+        // Открываем или закрываем затвор случайным образом
+        const action = Math.random() < 0.5 ? "open" : "close";
+        if (gateNumber === 1) {
+            controlGate1(action);
+        } else {
+            controlGate2(action);
+        }
+
+        // Устанавливаем следующий запуск через интервал времени, установленный пользователем
+        const interval = preventiveInterval * 60 * 60 * 1000; // Интервал в миллисекундах
+        console.log(`Следующее профилактическое движение затвора ${gateNumber} через ${preventiveInterval} часов`);
+
+        // Запоминаем время следующего движения
+        nextMovementTime = Date.now() + interval;
+
+        startTimer(); // Запускаем таймер
+    }
+
+    // Функция для отображения таймера обратного отсчета
+    function startTimer() {
+        clearInterval(timerInterval); // Останавливаем предыдущий таймер, если он есть
+
+        function updateTimer() {
+            const now = Date.now();
+            const timeLeft = nextMovementTime - now;
+
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById("timer").textContent = "Время вышло!";
+                preventiveGateMovement(); // Запускаем профилактическое движение затворов
+            } else {
+                const hours = Math.floor((timeLeft / (1000 * 60 * 60)));
+                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                const displayHours = hours < 10 ? "0" + hours : hours;
+                const displayMinutes = minutes < 10 ? "0" + minutes : minutes;
+                const displaySeconds = seconds < 10 ? "0" + seconds : seconds;
+
+                document.getElementById("timer").textContent = displayHours + ":" + displayMinutes + ":" + displaySeconds;
+            }
+        }
+
+        updateTimer(); // Вызываем сразу для отображения начального значения
+        timerInterval = setInterval(updateTimer, 1000); // Обновляем каждую секунду
+    }
+
+
+    // Обработчик нажатия на кнопку "Установить" интервал
+    document.getElementById("interval-button").addEventListener("click", function () {
+        const newInterval = parseInt(document.getElementById("interval-input").value);
+        if (!isNaN(newInterval) && newInterval >= 1 && newInterval <= 24) {
+            preventiveInterval = newInterval;
+            console.log(`Интервал профилактического движения изменен на ${preventiveInterval} часов`);
+            preventiveGateMovement(); // Запускаем профилактическое движение с новым интервалом
+        } else {
+            alert("Пожалуйста, введите корректное значение интервала (от 1 до 24 часов).");
+        }
+    });
+
+    // Запускаем профилактическое движение затворов при загрузке страницы
+    // Вычисляем время следующего движения при загрузке страницы
+    nextMovementTime = Date.now() + preventiveInterval * 60 * 60 * 1000;
+    startTimer();
+
+    // Инициализация текста кнопок
+    updateGateButtonText(1);
+    updateGateButtonText(2);
+</script>
+</body>
+</html>
