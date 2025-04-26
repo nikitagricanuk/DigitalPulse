@@ -2,6 +2,7 @@
 #include <ESP8266WiFi.h>
 #include "wifi.h"
 #include "sensors.h"
+#include "mqtt.h"
 
 // Global definitions
 #define WIRELESS_SSID "juli"
@@ -23,6 +24,7 @@ void setup() {
 
   initializeSensors(&sensors); 
   connectToWiFi(WIRELESS_SSID, WIRELESS_PASSWORD);
+  initializeMQTT();
   // server.on("/", handleRoot);
   // server.begin();
 
@@ -30,8 +32,11 @@ void setup() {
 
 void loop() {
   // server.handleClient();
+  handleMQTT();
   Serial.println(readTemperature(&sensors));
-  
+  char payload[50];
+  dtostrf(readTemperature(&sensors), 1, 2, payload);
+  publishMQTT("digitalpulse/temperature", payload);
 }
 
 // void handleRoot() {
