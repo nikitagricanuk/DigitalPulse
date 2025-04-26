@@ -24,3 +24,7 @@ upload: compile
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+monitor:
+	arduino-cli monitor \
+		--port $(PORT)
