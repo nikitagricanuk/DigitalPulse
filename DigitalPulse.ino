@@ -2,7 +2,8 @@
 #include <ESP8266WiFi.h>
 #include "wifi.h"
 #include "sensors.h"
-#include "mqtt.h"
+#include "server.h"
+#include "gates.h"
 
 // Global definitions
 #define WIRELESS_SSID "juli"
@@ -14,15 +15,13 @@
 // the setup function runs once when you press reset or power the board
 // ESP8266WebServer server(80); //Server on port 80
 
-OneWire oneWire(DS18B20_PIN);
-DallasTemperature sensors(&oneWire);
-
 void setup() {
   Serial.begin(9600); 
   
   // Pin configurations
 
-  initializeSensors(&sensors); 
+  initializeSensors(); 
+  setupGates(); // Setup gates
   connectToWiFi(WIRELESS_SSID, WIRELESS_PASSWORD);
   initializeMQTT();
   // server.on("/", handleRoot);
@@ -33,9 +32,9 @@ void setup() {
 void loop() {
   // server.handleClient();
   handleMQTT();
-  Serial.println(readTemperature(&sensors));
+  Serial.println(dallasReadTemperatureByIndex(0));
   char payload[50];
-  dtostrf(readTemperature(&sensors), 1, 2, payload);
+  dtostrf(dallasReadTemperatureByIndex(0), 1, 2, payload);
   publishMQTT("digitalpulse/temperature", payload);
 }
 
