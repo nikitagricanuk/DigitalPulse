@@ -1,9 +1,9 @@
 #include <PubSubClient.h>
+#include <ESP8266WiFi.h>
+#include "server.h"
 
 #define MQTT_SERVER "5.196.78.28"
 #define MQTT_PORT 1883
-
-#include <ESP8266WiFi.h>
 
 // Create a WiFi client and a PubSubClient
 WiFiClient espClient;
@@ -22,7 +22,6 @@ void reconnectMQTT() {
         clientId += String(random(0xffff), HEX);
         if (mqttClient.connect(clientId.c_str())) {
             Serial.println("connected");
-            // Subscribe to topics if needed here
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());
@@ -41,7 +40,6 @@ void publishMQTT(const char* topic, const char* payload) {
     mqttClient.publish(topic, payload);
 }
 
-// Call inside main loop to maintain connection
 void handleMQTT() {
     if (!mqttClient.connected()) {
         reconnectMQTT();
